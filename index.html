@@ -51,12 +51,27 @@
 #detail #fields .field{padding:10px 4px;border-bottom:1px solid #bbb}
 #detail #fields .lab{font-size:13px;color:#888}
 #detail #fields .val{font-size:18px;line-height:1.45}
+
+/* FINAL R9 — tampilan referensi diterapkan ke semua obat */
+#detail .notice,
+#detail #regimen,
+#detail #ageMonths,
+#detail #formSelect,
+#detail #amoxSimpleSwitch { display:none !important; }
+#detail .calcgrid{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px}
+#detail #rec{font-size:18px;line-height:1.45;font-weight:700}
+#detail #forms{font-size:17px;line-height:1.45}
+#detail #forms .field{padding:9px 2px;border-bottom:1px solid #d7d7d7}
+#detail #fields .field{padding:10px 2px;border-bottom:1px solid #bcbcbc}
+#detail #fields .lab{color:#8b8b8b;font-size:13px;margin-bottom:3px}
+#detail #fields .val{color:#111;font-size:18px;line-height:1.42}
+#detail .ct{font-size:18px;font-weight:700;text-align:center}
 </style>
 </head><body>
 <div class="app">
 <section id="home"><div class="top"><div class="search"><span>⌕</span><input id="q" placeholder="Cari obat, komposisi, golongan"></div><button class="iconbtn" id="fav">♥</button><button class="iconbtn" id="comp">▤</button><button class="iconbtn" id="menu">☰</button></div><div id="mainList" class="list"></div></section>
 <section id="cat" class="page"><div class="subhead"><span class="back">‹</span><span id="catTitle"></span></div><div class="subsearch"><input id="catQ" placeholder="Cari"></div><div id="catList" class="list"></div></section>
-<section id="detail" class="page"><div class="subhead"><span class="back">‹</span><span id="drugTitle"></span></div><div class="detail"><div id="calcBox"><div class="simplecalc"><div class="weightbox"><span class="scaleicon">⚖</span><input id="weight" type="number" min="0" step="0.1" placeholder="Berat Badan (kg)"></div><button id="calc">Hitung</button></div><div class="calcoptions"><select id="regimen" class="full"></select><input id="ageMonths" type="number" min="0" step="1" placeholder="Usia (bulan)"><select id="formSelect"><option value="">Sediaan untuk konversi</option></select></div></div><div class="notice"><b>Pendukung keputusan klinis.</b> <span class="tag ok">Final 2026.09-R8</span> Bukan pengganti diagnosis atau penilaian dokter. Cocokkan diagnosis, usia, fungsi ginjal/hati, alergi, interaksi, konsentrasi produk, serta pedoman lokal sebelum meresepkan.</div><div id="amoxSimpleSwitch" class="amox-simple-switch" style="display:none">
+<section id="detail" class="page"><div class="subhead"><span class="back">‹</span><span id="drugTitle"></span></div><div class="detail"><div id="calcBox"><div class="simplecalc"><div class="weightbox"><span class="scaleicon">⚖</span><input id="weight" type="number" min="0" step="0.1" placeholder="Berat Badan (kg)"></div><button id="calc">Hitung</button></div><div class="calcoptions"><select id="regimen" class="full"></select><input id="ageMonths" type="number" min="0" step="1" placeholder="Usia (bulan)"><select id="formSelect"><option value="">Sediaan untuk konversi</option></select></div></div><div class="notice"><b>Pendukung keputusan klinis.</b> <span class="tag ok">Final 2026.09-R9</span> Bukan pengganti diagnosis atau penilaian dokter. Cocokkan diagnosis, usia, fungsi ginjal/hati, alergi, interaksi, konsentrasi produk, serta pedoman lokal sebelum meresepkan.</div><div id="amoxSimpleSwitch" class="amox-simple-switch" style="display:none">
 <button type="button" data-ri="1" class="active">3× sehari</button>
 <button type="button" data-ri="3">2× sehari</button>
 <button type="button" data-ri="0">Pneumonia WHO</button>
@@ -111,36 +126,49 @@ function render(){const q=$('q').value.toLowerCase().trim();let a=all().filter(d
 function showPage(id){['home','cat','detail','profile','guides'].forEach(p=>$(p).classList.remove('active'));if(id==='home')$('home').style.display='block';else{$('home').style.display='none';$(id).classList.add('active')}}
 function formOptions(d){$('formSelect').innerHTML='<option value="">Sediaan untuk konversi</option>'+((d.forms||[]).map((f,i)=>`<option value="${i}">${esc(f.label||f)}</option>`).join(''))}
 function openDrug(d){
-current=d;$('drugTitle').textContent=d.name;showPage('detail');
+current=d;
+$('drugTitle').textContent=d.name;
+showPage('detail');
+
+const regs=d.regimens||[];
+const g=regs[0]||null;
 
 $('forms').innerHTML=(d.forms&&d.forms.length)
  ? d.forms.map(f=>`<div class="field">${esc(f.label||f)}</div>`).join('')
  : '<div class="field">-</div>';
 
-const regs=(d.regimens||[]);
-const first=regs[0]||null;
 let doseTxt='Belum dikurasi';
 let maxTxt='-';
-let ketTxt=d.notes||'-';
+if(g){
+ if(g.type==='rangeDose') doseTxt=`${fmt(g.min)} - ${fmt(g.max)} mg/kgBB/kali`;
+ else if(g.type==='singleDose') doseTxt=`${fmt(g.dose)} mg/kgBB/kali`;
+ else if(g.type==='rangeDay') doseTxt=`${fmt(g.min)} - ${fmt(g.max)} mg/kgBB/hari`;
+ else if(g.type==='dailyDivided') doseTxt=`${fmt(g.daily)} mg/kgBB/hari`;
+ else if(g.type==='fixed') doseTxt=`${fmt(g.fixed)} mg/kali`;
+ else doseTxt=g.label||'Regimen terkurasi';
 
+ if(g.maxDose!=null) maxTxt=`${fmt(g.maxDose)} mg/kali`;
+ else if(g.maxDay!=null) maxTxt=`${fmt(g.maxDay)} mg/hari`;
+ else if(g.maxDaily!=null) maxTxt=`${fmt(g.maxDaily)} mg/hari`;
+}
+
+// Amoxicillin mengikuti tampilan referensi yang pengguna minta.
 if(d.name==='Amoxicillin'){
-  doseTxt='10 - 25 mg/kgBB/kali';
-  maxTxt='1000 mg/kali';
-  ketTxt='Dosis referensi untuk usia >3 bulan. Pada bayi kecil, dosis dan interval harus ditentukan khusus sesuai usia serta kondisi klinis.';
-}else if(first){
-  doseTxt=first.label||'Regimen terkurasi';
-  if(first.maxDose) maxTxt=fmt(first.maxDose)+' mg/kali';
-  else if(first.maxDaily) maxTxt=fmt(first.maxDaily)+' mg/hari';
+ doseTxt='10 - 25 mg/kgBB/kali';
+ maxTxt='1000 mg/kali';
 }
 
 const contraind=d.contraindication||d.contraindications||'-';
 const adverse=d.sideEffects||d.adverseEffects||'-';
 const similar=(d.aliases&&d.aliases.length)?d.aliases.join(', '):'-';
+
+let ket=d.notes||'-';
+if(g&&g.interval) ket=`${g.interval}${ket&&ket!=='-'?'; '+ket:''}`;
+
 let sourceText='Sumber referensi terkurasi';
 if(d.name==='Amoxicillin') sourceText='Formularium, Frank Shann';
-else if(d.source && /who|ncbi/i.test(d.source)) sourceText='WHO / pedoman terkurasi';
-else if(d.source && /dailymed/i.test(d.source)) sourceText='DailyMed';
-else if(d.source) sourceText='Sumber referensi terkurasi';
+else if(d.source&&/who|ncbi/i.test(d.source)) sourceText='WHO';
+else if(d.source&&/dailymed/i.test(d.source)) sourceText='DailyMed';
 
 $('fields').innerHTML=`
 <div class="field"><div class="lab">Komposisi</div><div class="val">${esc(d.composition||'-')}</div></div>
@@ -150,20 +178,23 @@ $('fields').innerHTML=`
 <div class="field"><div class="lab">Indikasi</div><div class="val">${esc(d.indication||'-')}</div></div>
 <div class="field"><div class="lab">Kontraindikasi</div><div class="val">${esc(contraind)}</div></div>
 <div class="field"><div class="lab">Efek Samping</div><div class="val">${esc(adverse)}</div></div>
-<div class="field"><div class="lab">Keterangan</div><div class="val">${esc(ketTxt)}</div></div>
+<div class="field"><div class="lab">Keterangan</div><div class="val">${esc(ket)}</div></div>
 <div class="field"><div class="lab">Obat Sejenis</div><div class="val">${esc(similar)}</div></div>
 <div class="field"><div class="lab">Sumber</div><div class="val">${esc(sourceText)}</div></div>`;
 
 $('regimen').innerHTML=d.verified&&regs.length
  ? regs.map((x,i)=>`<option value="${i}">${esc(x.label)}</option>`).join('')
- : '<option>Regimen belum tersedia</option>';
+ : '<option value="">Belum tersedia</option>';
+if(regs.length) $('regimen').selectedIndex=0;
 
 formOptions(d);
-$('calc').disabled=!d.verified || !regs.length;
-$('calc').style.opacity=(!$('calc').disabled)?'1':'.45';
-$('rec').innerHTML=(!$('calc').disabled)
- ? 'Masukkan berat badan lalu tekan Hitung.'
- : '<span class="danger">Kalkulator belum diaktifkan untuk obat ini.</span>';
+if($('formSelect').options.length>1) $('formSelect').selectedIndex=1;
+
+$('calc').disabled=!d.verified||!regs.length;
+$('calc').style.opacity=$('calc').disabled?'.45':'1';
+$('rec').innerHTML=$('calc').disabled
+ ? '<span class="danger">Kalkulator belum diaktifkan untuk obat ini.</span>'
+ : 'Masukkan berat badan lalu tekan Hitung.';
 
 window.scrollTo(0,0)
 }
@@ -175,7 +206,7 @@ function calc(){if(!current?.verified)return;const g=current.regimens[Number($('
 function catList(mode){catMode=mode;showPage('cat');$('catTitle').textContent=mode==='group'?'Golongan Obat':mode==='comp'?'Komposisi Obat':'Obat Favorit';$('catQ').value='';renderCat()}
 function renderCat(){const q=$('catQ').value.toLowerCase();let a=[...oral,...inj,...topical];if(catMode==='fav')a=a.filter(d=>favs().has(d.name));if(q)a=a.filter(d=>[d.name,d.composition,d.group].join(' ').toLowerCase().includes(q));if(catMode==='group'||catMode==='comp'){const key=catMode==='group'?'group':'composition',groups={};a.forEach(d=>(groups[d[key]]??=[]).push(d));$('catList').innerHTML=Object.keys(groups).sort().map(k=>`<div class="catgrouphead">${esc(k)}</div>${groups[k].map(d=>`<div class="row" data-cn="${esc(d.name)}"><div>${esc(d.name)}</div></div>`).join('')}`).join('')}else $('catList').innerHTML=a.length?a.map(d=>`<div class="row" data-cn="${esc(d.name)}"><div>${esc(d.name)}</div></div>`).join(''):'<div class="empty">Belum ada obat favorit.</div>';document.querySelectorAll('[data-cn]').forEach(x=>x.onclick=()=>openDrug([...oral,...inj,...topical].find(d=>d.name===x.dataset.cn)))}
 function nav(t){tab=t;favOnly=false;document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.tab===t));if(t==='profil'){showPage('profile');return}if(t==='guideline'){showPage('guides');return}showPage('home');$('q').placeholder=t==='oral'?'Cari dosis obat oral':t==='injeksi'?'Cari dosis obat injeksi':'Cari obat topikal';render()}
-$('q').oninput=render;$('catQ').oninput=renderCat;$('calc').onclick=calc;$('regimen').onchange=()=>{$('rec').textContent='Masukkan data pasien lalu tekan Hitung.'};document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>nav(n.dataset.tab));document.querySelectorAll('.back').forEach(b=>b.onclick=()=>nav(tab));$('fav').onclick=()=>{favOnly=!favOnly;render()};$('comp').onclick=()=>catList('comp');$('menu').onclick=()=>$('sheet').classList.add('open');$('sheet').onclick=e=>{if(e.target===$('sheet'))$('sheet').classList.remove('open')};$('sg').onclick=()=>{$('sheet').classList.remove('open');catList('group')};$('sc').onclick=()=>{$('sheet').classList.remove('open');catList('comp')};$('sf').onclick=()=>{$('sheet').classList.remove('open');catList('fav')};$('sa').onclick=()=>{alert('Dosis Obat Anak — Final 2026.09-R8\n\nAplikasi referensi dan kalkulator dosis pediatrik terkurasi. Tidak menggantikan penilaian klinis. Regimen yang belum dikurasi sengaja tidak dapat dihitung.');$('sheet').classList.remove('open')};
+$('q').oninput=render;$('catQ').oninput=renderCat;$('calc').onclick=calc;$('regimen').onchange=()=>{$('rec').textContent='Masukkan data pasien lalu tekan Hitung.'};document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>nav(n.dataset.tab));document.querySelectorAll('.back').forEach(b=>b.onclick=()=>nav(tab));$('fav').onclick=()=>{favOnly=!favOnly;render()};$('comp').onclick=()=>catList('comp');$('menu').onclick=()=>$('sheet').classList.add('open');$('sheet').onclick=e=>{if(e.target===$('sheet'))$('sheet').classList.remove('open')};$('sg').onclick=()=>{$('sheet').classList.remove('open');catList('group')};$('sc').onclick=()=>{$('sheet').classList.remove('open');catList('comp')};$('sf').onclick=()=>{$('sheet').classList.remove('open');catList('fav')};$('sa').onclick=()=>{alert('Dosis Obat Anak — Final 2026.09-R9\n\nAplikasi referensi dan kalkulator dosis pediatrik terkurasi. Tidak menggantikan penilaian klinis. Regimen yang belum dikurasi sengaja tidak dapat dihitung.');$('sheet').classList.remove('open')};
 $('guideList').innerHTML=guides.map(g=>`<div class="guidecard"><h3>${esc(g.title)}</h3><div style="white-space:pre-line">${esc(g.text)}</div></div>`).join('');let p=JSON.parse(localStorage.getItem('doa_profile')||'{}');$('pn').value=p.name||'';$('pr').value=p.role||'';$('pt').value=p.note||'';$('savep').onclick=()=>{localStorage.setItem('doa_profile',JSON.stringify({name:$('pn').value,role:$('pr').value,note:$('pt').value}));alert('Profil tersimpan.')};if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));render();
 
 function wireAmoxSimple(){
